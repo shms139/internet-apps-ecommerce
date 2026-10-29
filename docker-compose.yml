@@ -1,0 +1,15 @@
+﻿services:
+  app:
+    build: .
+    container_name: ecommerce-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/www/html/database/database.sqlite
+    volumes:
+      - ./database/database.sqlite:/var/www/html/database/database.sqlite
+      - ./storage/app/public:/var/www/html/storage/app/public
+    restart: unless-stopped
