@@ -12,10 +12,21 @@ use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
+    // Customer: view only their own orders
     public function index(Request $request)
     {
         $orders = Order::where('user_id', $request->user('api')->id)
             ->with('items.product')
+            ->latest()
+            ->paginate(10);
+
+        return response()->json($orders);
+    }
+
+    // Admin: view all store orders with customer and product details
+    public function adminIndex(Request $request)
+    {
+        $orders = Order::with(['user', 'items.product'])
             ->latest()
             ->paginate(10);
 
@@ -86,17 +97,23 @@ class OrderController extends Controller
         ], 201);
     }
 
+    // Customer: view one order only if it belongs to them
     public function show(Request $request, Order $order)
     {
-        if ($order->user_id !== $request->user('api')->id) {
+        $user = $request->user('api');
+
+        if ($user->role !== 'admin' && $order->user_id !== $user->id) {
             return response()->json([
-                'message' => 'Forbidden: You cannot access this order.',
+                'message' => 'Forbidden: You cannot access this order.'
             ], 403);
         }
 
-        return response()->json($order->load('items.product'));
+        return response()->json(
+            $order->load(['user', 'items.product'])
+        );
     }
 
+    // Admin: update order status
     public function updateStatus(Request $request, Order $order)
     {
         $validated = $request->validate([

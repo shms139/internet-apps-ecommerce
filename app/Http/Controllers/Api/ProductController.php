@@ -16,7 +16,7 @@ class ProductController extends Controller
                 $query->where('category', $request->category);
             })
             ->latest()
-            ->paginate(min((int) $request->query('per_page', 10), 100));
+            ->paginate(min((int) $request->query('per_page', 10), 100)) ->withQueryString();
         return response()->json($products);
     }
 
