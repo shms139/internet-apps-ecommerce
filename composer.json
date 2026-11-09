@@ -7,6 +7,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "google/protobuf": "^5.36",
+        "grpc/grpc": "^1.85",
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
@@ -25,7 +27,9 @@
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/"
+            "Database\\Seeders\\": "database/seeders/",
+            "Inventory\\": "app/Grpc/Inventory/",
+            "GPBMetadata\\": "app/Grpc/GPBMetadata/"
         }
     },
     "autoload-dev": {

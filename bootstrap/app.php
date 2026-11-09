@@ -11,7 +11,6 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
-use Throwable;
 
 use App\Http\Middleware\AdminMiddleware;
 
@@ -39,13 +38,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Return JSON responses for API requests.
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request, Throwable $e): bool =>
+            fn (Request $request, \Throwable $e): bool =>
                 $request->is('api/*') || $request->expectsJson()
         );
 
         // Handle API exceptions.
-        $exceptions->render(function (Throwable $e, Request $request) {
-
+        $exceptions->render(function (\Throwable $e, Request $request) {
             // Do not change normal web exception handling.
             if (! $request->is('api/*')) {
                 return null;

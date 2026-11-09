@@ -1,15 +1,49 @@
-﻿services:
-  app:
-    build: .
-    container_name: ecommerce-app
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    environment:
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /var/www/html/database/database.sqlite
-    volumes:
-      - ./database/database.sqlite:/var/www/html/database/database.sqlite
-      - ./storage/app/public:/var/www/html/storage/app/public
-    restart: unless-stopped
+﻿
+services:
+    app:
+        build: .
+        container_name: ecommerce-app
+        ports:
+            - "8000:8000"
+        env_file:
+            - .env
+        environment:
+            DB_CONNECTION: sqlite
+            DB_DATABASE: /var/www/html/database/database.sqlite
+        volumes:
+            - ./database/database.sqlite:/var/www/html/database/database.sqlite
+            - ./storage/app/public:/var/www/html/storage/app/public
+        restart: unless-stopped
+
+    inventory-db:
+        image: postgres:16-alpine
+        container_name: ecommerce-inventory-db
+        environment:
+            POSTGRES_DB: inventory_db
+            POSTGRES_USER: inventory_user
+            POSTGRES_PASSWORD: inventory_dev_password
+        volumes:
+            - inventory-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+        restart: unless-stopped
+
+    inventory-service:
+        build:
+            context: ./inventory-service
+            dockerfile: Dockerfile
+        container_name: ecommerce-inventory-service
+        environment:
+            DATABASE_URL: postgresql://inventory_user:inventory_dev_password@inventory-db:5432/inventory_db
+        ports:
+            - "50051:50051"
+        depends_on:
+            inventory-db:
+                condition: service_healthy
+        restart: unless-stopped
+
+volumes:
+    inventory-data:
