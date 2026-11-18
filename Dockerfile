@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
     protobuf-compiler-grpc \
     $PHPIZE_DEPS \
-    && pecl install grpc-1.85.0 \
-    && docker-php-ext-enable grpc \
+    && pecl install grpc-1.85.0 redis \
+    && docker-php-ext-enable grpc redis \
     && docker-php-ext-install pdo_sqlite mbstring bcmath pcntl zip \
     && rm -rf /var/lib/apt/lists/*
 
