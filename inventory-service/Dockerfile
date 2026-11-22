@@ -1,23 +1,39 @@
-FROM python:3.12-slim
+FROM php:8.3-cli
 
-WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    unzip \
+    libsqlite3-dev \
+    libpq-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev \
+    zlib1g-dev \
+    protobuf-compiler \
+    protobuf-compiler-grpc \
+    \
+                            && apt-get install -y --no-install-recommends libpq-dev \
+                            && docker-php-ext-install pdo_pgsql \
+                            && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+    $PHPIZE_DEPS \
+    && pecl channel-update pecl.php.net \
+    && pecl install grpc-1.85.0 \
+    && pecl install redis \
+    && docker-php-ext-enable grpc redis \
+    && docker-php-ext-install pdo_sqlite pdo_pgsql mbstring bcmath pcntl zip \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-COPY proto ./proto
-COPY app ./app
+WORKDIR /var/www/html
 
-RUN python -m grpc_tools.protoc \
--I./proto \
---python_out=./app \
---grpc_python_out=./app \
-./proto/inventory.proto
+COPY . .
 
-ENV PYTHONPATH=/app/app
-ENV PYTHONUNBUFFERED=1
+RUN composer install --no-interaction --prefer-dist \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-EXPOSE 50051
+EXPOSE 8000
 
-CMD ["python", "app/server.py"]
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

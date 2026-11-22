@@ -1,4 +1,4 @@
-﻿
+
 services:
     app:
         build: .
@@ -8,8 +8,15 @@ services:
         env_file:
             - .env
         environment:
-            DB_CONNECTION: sqlite
+            DB_CONNECTION: pgsql
             DB_DATABASE: /var/www/html/database/database.sqlite
+            PGSQL_HOST: ecommerce-primary
+            PGSQL_PORT: "5432"
+            PGSQL_DATABASE: ecommerce
+            PGSQL_USERNAME: ecommerce_user
+            PGSQL_PASSWORD: ecommerce_dev_password
+            PGSQL_READ_HOST: ecommerce-replica
+            PGSQL_WRITE_HOST: ecommerce-primary
         volumes:
             - ./database/database.sqlite:/var/www/html/database/database.sqlite
             - ./storage/app/public:/var/www/html/storage/app/public
@@ -58,6 +65,57 @@ services:
             retries: 10
         restart: unless-stopped
 
+    ecommerce-primary:
+        build:
+            context: ./docker/postgres/primary
+            dockerfile: Dockerfile
+        container_name: ecommerce-primary
+        environment:
+            POSTGRES_DB: ecommerce
+            POSTGRES_USER: ecommerce_user
+            POSTGRES_PASSWORD: ecommerce_dev_password
+            REPLICATION_PASSWORD: replication_dev_password
+        command:
+            - postgres
+            - -c
+            - wal_level=replica
+            - -c
+            - max_wal_senders=10
+            - -c
+            - max_replication_slots=10
+        volumes:
+            - ecommerce-primary-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ecommerce_user -d ecommerce"]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+        restart: unless-stopped
+
+    ecommerce-replica:
+        build:
+            context: ./docker/postgres/replica
+            dockerfile: Dockerfile
+        container_name: ecommerce-replica
+        environment:
+            POSTGRES_DB: ecommerce
+            POSTGRES_USER: ecommerce_user
+            POSTGRES_PASSWORD: ecommerce_dev_password
+            REPLICATION_PASSWORD: replication_dev_password
+        volumes:
+            - ecommerce-replica-data:/var/lib/postgresql/data
+        depends_on:
+            ecommerce-primary:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ecommerce_user -d ecommerce"]
+            interval: 5s
+            timeout: 5s
+            retries: 30
+        restart: unless-stopped
+
 volumes:
     inventory-data:
     redis-data:
+    ecommerce-primary-data:
+    ecommerce-replica-data:

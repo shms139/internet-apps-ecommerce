@@ -1,19 +1,9 @@
-FROM php:8.3-cli
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    unzip \
-    libsqlite3-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    zlib1g-dev \
-    protobuf-compiler \
-    protobuf-compiler-grpc \
-    $PHPIZE_DEPS \
-    && pecl install grpc-1.85.0 redis \
-    && docker-php-ext-enable grpc redis \
-    && docker-php-ext-install pdo_sqlite mbstring bcmath pcntl zip \
+FROM internet-apps-ecommerce-app:grpc-base
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev \
+    && docker-php-ext-install pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

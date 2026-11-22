@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -8,16 +9,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->uuid('reservation_id')->nullable()->unique();
-        });
+        if (! Schema::hasColumn('orders', 'reservation_id')) {
+            Schema::table('orders', function (Blueprint $table) {
+                $table->uuid('reservation_id')->nullable()->unique();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->dropUnique(['reservation_id']);
-            $table->dropColumn('reservation_id');
-        });
+        if (Schema::hasColumn('orders', 'reservation_id')) {
+            Schema::table('orders', function (Blueprint $table) {
+                $table->dropUnique(['reservation_id']);
+                $table->dropColumn('reservation_id');
+            });
+        }
     }
 };
