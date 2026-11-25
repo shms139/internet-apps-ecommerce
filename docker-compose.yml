@@ -17,10 +17,54 @@ services:
             PGSQL_PASSWORD: ecommerce_dev_password
             PGSQL_READ_HOST: ecommerce-replica
             PGSQL_WRITE_HOST: ecommerce-primary
+            REVERB_HOST: reverb
+            REVERB_PORT: "8080"
+            REVERB_SCHEME: http
         volumes:
             - ./database/database.sqlite:/var/www/html/database/database.sqlite
             - ./storage/app/public:/var/www/html/storage/app/public
         restart: unless-stopped
+
+
+    queue-worker:
+        image: internet-apps-ecommerce-app
+        container_name: ecommerce-queue-worker
+        command:
+            - php
+            - artisan
+            - queue:work
+            - rabbitmq
+            - --queue=emails
+            - --tries=3
+            - --timeout=90
+            - --sleep=3
+            - --verbose
+        env_file:
+            - .env
+        environment:
+            DB_CONNECTION: pgsql
+            DB_DATABASE: /var/www/html/database/database.sqlite
+            PGSQL_HOST: ecommerce-primary
+            PGSQL_PORT: "5432"
+            PGSQL_DATABASE: ecommerce
+            PGSQL_USERNAME: ecommerce_user
+            PGSQL_PASSWORD: ecommerce_dev_password
+            PGSQL_READ_HOST: ecommerce-replica
+            PGSQL_WRITE_HOST: ecommerce-primary
+        volumes:
+            - ./database/database.sqlite:/var/www/html/database/database.sqlite
+            - ./storage/app/public:/var/www/html/storage/app/public
+        depends_on:
+            rabbitmq:
+                condition: service_healthy
+            ecommerce-primary:
+                condition: service_healthy
+            ecommerce-replica:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        restart: unless-stopped
+
 
     inventory-db:
         image: postgres:16-alpine
@@ -38,6 +82,7 @@ services:
             retries: 10
         restart: unless-stopped
 
+
     inventory-service:
         build:
             context: ./inventory-service
@@ -50,6 +95,46 @@ services:
         depends_on:
             inventory-db:
                 condition: service_healthy
+        restart: unless-stopped
+
+    rabbitmq:
+        image: rabbitmq:4-management-alpine
+        container_name: ecommerce-rabbitmq
+        environment:
+            RABBITMQ_DEFAULT_USER: ecommerce_rabbitmq
+            RABBITMQ_DEFAULT_PASS: rabbitmq_dev_password
+            RABBITMQ_DEFAULT_VHOST: /
+        ports:
+            - "15672:15672"
+        volumes:
+            - rabbitmq-data:/var/lib/rabbitmq
+        healthcheck:
+            test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 10
+        restart: unless-stopped
+
+
+    reverb:
+        image: internet-apps-ecommerce-app
+        container_name: ecommerce-reverb
+        command:
+            - php
+            - artisan
+            - reverb:start
+            - --host=0.0.0.0
+            - --port=8080
+        env_file:
+            - .env
+        environment:
+            REVERB_SERVER_HOST: 0.0.0.0
+            REVERB_SERVER_PORT: "8080"
+            REVERB_HOST: reverb
+            REVERB_PORT: "8080"
+            REVERB_SCHEME: http
+        ports:
+            - "8080:8080"
         restart: unless-stopped
 
     redis:
@@ -114,8 +199,10 @@ services:
             retries: 30
         restart: unless-stopped
 
+
 volumes:
     inventory-data:
     redis-data:
     ecommerce-primary-data:
     ecommerce-replica-data:
+    rabbitmq-data:

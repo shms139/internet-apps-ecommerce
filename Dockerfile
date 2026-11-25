@@ -19,6 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-install pdo_sqlite pdo_pgsql mbstring bcmath pcntl zip \
     && rm -rf /var/lib/apt/lists/*
 
+RUN docker-php-ext-install sockets
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html

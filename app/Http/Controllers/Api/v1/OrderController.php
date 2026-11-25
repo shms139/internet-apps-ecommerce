@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
+use App\Jobs\SendOrderConfirmationEmail;
+use App\Events\OrderCreated;
+use App\Events\OrderStatusUpdated;
 
 class OrderController extends Controller
 {
@@ -143,12 +146,36 @@ class OrderController extends Controller
             ], 500);
         }
 
+        // Queue order confirmation email after successful order creation.
+        $emailQueued = false;
+
+        try {
+            SendOrderConfirmationEmail::dispatch((int) $order->id);
+            $emailQueued = true;
+        } catch (Throwable $exception) {
+            Log::error('Failed to queue order confirmation email.', [
+                'order_id' => $order->id,
+                'exception' => $exception->getMessage(),
+            ]);
+        }
+
+        // Notify administrators about the newly created order.
+        try {
+            event(new OrderCreated((int) $order->id));
+        } catch (Throwable $exception) {
+            Log::error('Failed to broadcast new order event.', [
+                'order_id' => $order->id,
+                'exception' => $exception->getMessage(),
+            ]);
+        }
+
         return response()->json([
             'message' => 'Order created successfully',
             'order' => $order->load('items.product'),
+            'email_queued' => $emailQueued,
         ], 201);
-    }
 
+    }
     private function releaseSafely(
         InventoryGrpcClient $inventory,
         string $reservationId
@@ -228,10 +255,20 @@ class OrderController extends Controller
         }
 
         // Update the local order status first.
-        if (! $isCancellationRetry) {
+               if (! $isCancellationRetry) {
             $order->update([
                 'status' => $newStatus,
             ]);
+
+            // Notify the order owner about the status change.
+            try {
+                event(new OrderStatusUpdated((int) $order->id));
+            } catch (Throwable $exception) {
+                Log::error('Failed to broadcast order status event.', [
+                    'order_id' => $order->id,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
         }
 
         // Release reserved inventory when the order is cancelled.

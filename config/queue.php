@@ -44,6 +44,38 @@ return [
             'after_commit' => false,
         ],
 
+
+    'rabbitmq' => [
+        'driver' => 'rabbitmq',
+
+        'hosts' => [
+            [
+                'host' => env('RABBITMQ_HOST', 'rabbitmq'),
+                'port' => (int) env('RABBITMQ_PORT', 5672),
+                'user' => env('RABBITMQ_USER', 'ecommerce_rabbitmq'),
+                'password' => env('RABBITMQ_PASSWORD', ''),
+                'vhost' => env('RABBITMQ_VHOST', '/'),
+            ],
+        ],
+
+        'queue' => env('RABBITMQ_QUEUE', 'default'),
+
+        'retry_after' => (int) env('RABBITMQ_RETRY_AFTER', 120),
+
+        'after_commit' => true,
+
+        'options' => [
+            'heartbeat' => 60,
+
+            'queue' => [
+                'reroute_failed' => true,
+                'failed_exchange' => 'amq.direct',
+                'failed_routing_key' => '%s.failed',
+            ],
+        ],
+    ],
+
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),
